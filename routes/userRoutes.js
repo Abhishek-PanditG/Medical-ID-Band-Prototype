@@ -18,7 +18,7 @@ router.post('/register', async (req, res) => {
     await newUser.save();
 
     // Create QR Code
-    const profileURL = `http://localhost:3000/user/${newUser._id}`;
+    const profileURL = `https://medical-id-band-prototype.onrender.com/user/${newUser._id}`;
     const qrPath = `public/qr_codes/${newUser._id}.png`;
 
     await QRCode.toFile(qrPath, profileURL);
