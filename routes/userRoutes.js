@@ -3,7 +3,6 @@ const router = express.Router();
 const User = require('../models/userModel');
 const QRCode = require('qrcode');
 const path = require('path');
-const fs = require('fs');
 const dotenv = require('dotenv');
 dotenv.config();
 
@@ -19,18 +18,18 @@ router.post('/register', async (req, res) => {
     await newUser.save();
 
     const baseUrl = process.env.BASE_URL || "http://localhost:3000";
-
-    // Generate QR Code with the public user link
     const qrData = `${baseUrl}/user/${newUser._id}`;
-    const qrPath = path.join('public/qr_codes', `${newUser._id}.png`);
-    await QRCode.toFile(qrPath, qrData);
 
-    newUser.qrCodePath = `${baseUrl}/qr_codes/${newUser._id}.png`;
+    // Generate QR as base64
+    const qrCodeBase64 = await QRCode.toDataURL(qrData);
+
+    // Save QR URL in user model (optional)
+    newUser.qrCodePath = qrCodeBase64;
     await newUser.save();
 
     res.status(201).json({
       message: "QR Code Generated Successfully!",
-      qrCodePath: newUser.qrCodePath,
+      qrCodeUrl: qrCodeBase64,
       userId: newUser._id
     });
   } catch (err) {
