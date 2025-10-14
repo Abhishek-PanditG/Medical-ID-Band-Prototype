@@ -4,72 +4,75 @@ const User = require('../models/userModel');
 const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
+const dotenv = require('dotenv');
+dotenv.config();
 
-// Home page (form)
-router.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
-});
-
-// Register user + generate QR code
+// POST /register
 router.post('/register', async (req, res) => {
   try {
     const { name, bloodGroup, allergies, emergencyContact } = req.body;
+    if (!name || !bloodGroup || !emergencyContact) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
     const newUser = new User({ name, bloodGroup, allergies, emergencyContact });
     await newUser.save();
 
-    // Create QR Code
-    const profileURL = `https://medical-id-band-prototype.onrender.com/user/${newUser._id}`;
-    const qrPath = `public/qr_codes/${newUser._id}.png`;
+    const baseUrl = process.env.BASE_URL || "http://localhost:3000";
 
-    await QRCode.toFile(qrPath, profileURL);
-    newUser.qrCodePath = `/qr_codes/${newUser._id}.png`;
+    // Generate QR Code with the public user link
+    const qrData = `${baseUrl}/user/${newUser._id}`;
+    const qrPath = path.join('public/qr_codes', `${newUser._id}.png`);
+    await QRCode.toFile(qrPath, qrData);
+
+    newUser.qrCodePath = `${baseUrl}/qr_codes/${newUser._id}.png`;
     await newUser.save();
 
-    res.send(`
-      <h2>✅ QR Code Generated Successfully!</h2>
-      <img src="${newUser.qrCodePath}" width="200" />
-      <p>Scan this QR code to view your emergency info.</p>
-      <a href="/">Register Another</a>
-    `);
+    res.status(201).json({
+      message: "QR Code Generated Successfully!",
+      qrCodePath: newUser.qrCodePath,
+      userId: newUser._id
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).send("Error creating user record.");
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-// View user info (after scanning QR)
-router.get('/user/:id', async (req, res) => {
+// GET /user/:id
+router.get("/user/:id", async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
-    if (!user) return res.send("User not found!");
+    if (!user) {
+      return res.status(404).send("<h2>User not found</h2>");
+    }
 
-    // Serve dynamic HTML (no EJS)
-    const html = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <title>Emergency Info - ${user.name}</title>
-        <link rel="stylesheet" href="/styles.css">
-      </head>
-      <body>
-        <h2>🚑 Emergency Medical Information</h2>
-        <div class="card">
-          <p><strong>Name:</strong> ${user.name}</p>
-          <p><strong>Blood Group:</strong> ${user.bloodGroup}</p>
-          <p><strong>Allergies:</strong> ${user.allergies || 'None'}</p>
-          <p><strong>Emergency Contact:</strong> ${user.emergencyContact}</p>
-        </div>
-        <br>
-        <img src="${user.qrCodePath}" width="150" />
-        <p><em>Scan to verify medical details</em></p>
-      </body>
+    // Render simple HTML (for emergency QR scan view)
+    res.send(`
+      <html>
+        <head>
+          <title>Emergency Info</title>
+          <style>
+            body { font-family: Arial; padding: 20px; }
+            .card { max-width: 400px; margin: auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+            h2 { color: #c0392b; text-align: center; }
+            p { font-size: 16px; line-height: 1.6; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h2>🚑 Emergency Medical Info</h2>
+            <p><strong>Name:</strong> ${user.name}</p>
+            <p><strong>Blood Group:</strong> ${user.bloodGroup}</p>
+            <p><strong>Allergies:</strong> ${user.allergies || "None"}</p>
+            <p><strong>Emergency Contact:</strong> ${user.emergencyContact}</p>
+          </div>
+        </body>
       </html>
-    `;
-    res.send(html);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error loading user profile.");
+    `);
+  } catch (error) {
+    console.error("❌ Error fetching user profile:", error);
+    res.status(500).send("Server error.");
   }
 });
 
