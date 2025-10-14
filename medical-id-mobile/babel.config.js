@@ -6,8 +6,8 @@ module.exports = function(api) {
       [
         'module:react-native-dotenv',
         {
-          moduleName: '@env',   // import like: import { BACKEND_URL } from '@env';
-          path: '.env',          // path to your .env file
+          moduleName: '@env',
+          path: '.env',
           blacklist: null,
           whitelist: null,
           safe: false,

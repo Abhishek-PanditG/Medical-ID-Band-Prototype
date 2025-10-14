@@ -19,5 +19,8 @@
     "react-native-dotenv": "^3.4.11",
     "react-native-qrcode-svg": "^6.3.15"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "babel-preset-expo": "^54.0.4"
+  }
 }
